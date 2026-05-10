@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人財務儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- 導覽列 -->
+    <nav class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <i data-lucide="wallet" class="text-blue-600 w-6 h-6"></i>
+            <h1 class="text-xl font-bold text-gray-800">財務儀表板</h1>
+        </div>
+        <div id="loadingStatus" class="text-sm text-gray-500">讀取中...</div>
+    </nav>
+
+    <!-- 主要內容區 -->
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- 頂部數據卡片 -->
+        <div class="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+                <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+                    <i data-lucide="landmark" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">總資產</p>
+                    <h3 id="totalAssets" class="text-2xl font-bold text-gray-800">$0</h3>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+                <div class="bg-green-100 p-3 rounded-full text-green-600">
+                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">本月收入</p>
+                    <h3 id="monthlyIncome" class="text-2xl font-bold text-gray-800">$0</h3>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+                <div class="bg-red-100 p-3 rounded-full text-red-600">
+                    <i data-lucide="trending-down" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">本月支出</p>
+                    <h3 id="monthlyExpense" class="text-2xl font-bold text-gray-800">$0</h3>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+                <div class="bg-purple-100 p-3 rounded-full text-purple-600">
+                    <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 font-medium">本月結餘</p>
+                    <h3 id="monthlyBalance" class="text-2xl font-bold text-gray-800">$0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表區 -->
+        <div class="md:col-span-8 glass-card rounded-2xl p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">近六個月收支趨勢</h2>
+            <div class="relative h-64 w-full">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="md:col-span-4 glass-card rounded-2xl p-6 flex flex-col">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">本月支出結構</h2>
+            <div class="relative flex-1 w-full flex items-center justify-center min-h-[200px]">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 最近交易紀錄 -->
+        <div class="md:col-span-12 glass-card rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-800">最近交易紀錄</h2>
+                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">僅顯示最新 10 筆</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-gray-100 text-sm text-gray-500">
+                            <th class="pb-3 pl-2 font-medium">日期</th>
+                            <th class="pb-3 font-medium">分類</th>
+                            <th class="pb-3 font-medium">品項</th>
+                            <th class="pb-3 font-medium text-right pr-2">金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionList" class="text-sm">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 月份明細查詢 -->
+        <div class="md:col-span-12 glass-card rounded-2xl p-6 mt-2">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <h2 class="text-lg font-bold text-gray-800">月份明細查詢</h2>
+                <input type="month" id="monthSelector" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+            <div class="flex gap-4 mb-4 text-sm">
+                <span class="text-green-600 font-medium" id="selectedMonthIncome">收入: $0</span>
+                <span class="text-red-500 font-medium" id="selectedMonthExpense">支出: $0</span>
+                <span class="text-gray-800 font-bold" id="selectedMonthBalance">結餘: $0</span>
+            </div>
+            <div class="overflow-y-auto max-h-96">
+                <table class="w-full text-left border-collapse relative">
+                    <thead class="sticky top-0 bg-white shadow-sm">
+                        <tr class="border-b border-gray-100 text-sm text-gray-500">
+                            <th class="pb-3 pl-2 font-medium bg-white">日期</th>
+                            <th class="pb-3 font-medium bg-white">分類</th>
+                            <th class="pb-3 font-medium bg-white">品項</th>
+                            <th class="pb-3 font-medium text-right pr-2 bg-white">金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyTransactionList" class="text-sm">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // ★★★ 請將下方的文字替換成你的 Google Apps Script 網址 ★★★
+        const API_URL = "https://script.google.com/macros/s/AKfycbwUtuUxJeHFI0KNPm04Xv0pA0_o0YOGu5JI0ev_obOpfkaoz3AlWVvRL9RR8a2HgZwq/exec";
+
+        let trendChartInstance = null;
+        let categoryChartInstance = null;
+        let globalData = []; 
+
+        const mockData = [
+            { "日期": "2026/02/16", "收支": "支出", "分類": "飲食", "品項": "午餐", "支出金額": 150, "收入金額": "" },
+            { "日期": "2026/02/10", "收支": "收入", "分類": "薪資", "品項": "薪水", "支出金額": "", "收入金額": 50000 },
+            { "日期": "2026/02/01", "收支": "初始餘額", "分類": "資產", "品項": "帳戶餘額", "支出金額": "", "收入金額": 120000 }
+        ];
+
+        window.onload = () => {
+            document.getElementById('monthSelector').addEventListener('change', (e) => {
+                renderMonthlyDetails(e.target.value);
+            });
+
+            if (API_URL && API_URL.trim() !== "" && API_URL !== "YOUR_APPS_SCRIPT_URL_HERE") {
+                fetchDataFromUrl(API_URL);
+            } else {
+                document.getElementById('loadingStatus').innerText = '顯示展示資料';
+                renderDashboard(mockData);
+            }
+        };
+
+        async function fetchDataFromUrl(url) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                document.getElementById('loadingStatus').innerText = '資料已更新';
+                renderDashboard(data);
+            } catch (error) {
+                document.getElementById('loadingStatus').innerText = '載入失敗';
+                alert('資料讀取失敗，請確認網址是否正確。');
+                renderDashboard(mockData); 
+            }
+        }
+
+        function renderDashboard(data) {
+            if (!data || data.length === 0) return;
+
+            globalData = data; 
+            let totalAssets = 0;
+            let monthlyIncome = 0;
+            let monthlyExpense = 0;
+            const currentMonth = new Date().getMonth() + 1;
+            const categoryTotals = {};
+            const transactions = [];
+            const trendData = {};
+            const today = new Date();
+
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                trendData[key] = { income: 0, expense: 0, label: `${d.getMonth() + 1}月` };
+            }
+
+            data.forEach(row => {
+                const dateObj = new Date(row["日期"]);
+                const month = dateObj.getMonth() + 1;
+                const type = row["收支"];
+                const expense = Number(row["支出金額"]) || 0;
+                const income = Number(row["收入金額"]) || 0;
+                const category = row["分類"];
+
+                totalAssets += (income - expense);
+
+                if (month === currentMonth && dateObj.getFullYear() === today.getFullYear()) {
+                    if (type === "收入" || income > 0) monthlyIncome += income;
+                    if (type === "支出" || expense > 0) {
+                        monthlyExpense += expense;
+                        if (category) {
+                            categoryTotals[category] = (categoryTotals[category] || 0) + expense;
+                        }
+                    }
+                }
+
+                const trendKey = `${dateObj.getFullYear()}-${String(month).padStart(2, '0')}`;
+                if (trendData[trendKey]) {
+                    trendData[trendKey].income += income;
+                    trendData[trendKey].expense += expense;
+                }
+
+                if (type !== "初始餘額") {
+                    transactions.push({
+                        date: dateObj.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }),
+                        category: category,
+                        item: row["品項"],
+                        amount: type === "支出" || expense > 0 ? `-$${expense}` : `+$${income}`,
+                        isExpense: type === "支出" || expense > 0,
+                        timestamp: dateObj.getTime()
+                    });
+                }
+            });
+
+            document.getElementById('totalAssets').innerText = `$${totalAssets.toLocaleString()}`;
+            document.getElementById('monthlyIncome').innerText = `$${monthlyIncome.toLocaleString()}`;
+            document.getElementById('monthlyExpense').innerText = `$${monthlyExpense.toLocaleString()}`;
+            document.getElementById('monthlyBalance').innerText = `$${(monthlyIncome - monthlyExpense).toLocaleString()}`;
+
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+            const listHtml = transactions.slice(0, 10).map(t => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="py-3 pl-2 text-gray-500">${t.date}</td>
+                    <td class="py-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${t.category}</span></td>
+                    <td class="py-3 text-gray-800">${t.item}</td>
+                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500' : 'text-green-500'}">${t.amount}</td>
+                </tr>
+            `).join('');
+            document.getElementById('transactionList').innerHTML = listHtml;
+
+            renderCategoryChart(categoryTotals);
+            renderTrendChart(trendData);
+
+            const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            const monthSelector = document.getElementById('monthSelector');
+            if (!monthSelector.value) {
+                monthSelector.value = currentMonthStr;
+            }
+            renderMonthlyDetails(monthSelector.value);
+        }
+
+        function renderMonthlyDetails(yearMonth) {
+            if (!globalData || !yearMonth) return;
+            const [targetYear, targetMonth] = yearMonth.split('-');
+            
+            let totalIncome = 0;
+            let totalExpense = 0;
+            const transactions = [];
+
+            globalData.forEach(row => {
+                const dateObj = new Date(row["日期"]);
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const type = row["收支"];
+                
+                if (type === "初始餘額" || type === "資產") return;
+
+                if (year == targetYear && month == targetMonth) {
+                    const expense = Number(row["支出金額"]) || 0;
+                    const income = Number(row["收入金額"]) || 0;
+                    
+                    if (type === "收入" || income > 0) totalIncome += income;
+                    if (type === "支出" || expense > 0) totalExpense += expense;
+
+                    transactions.push({
+                        date: dateObj.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }),
+                        category: row["分類"] || '',
+                        item: row["品項"] || '',
+                        amount: type === "支出" || expense > 0 ? `-$${expense}` : `+$${income}`,
+                        isExpense: type === "支出" || expense > 0,
+                        timestamp: dateObj.getTime()
+                    });
+                }
+            });
+
+            document.getElementById('selectedMonthIncome').innerText = `收入: $${totalIncome.toLocaleString()}`;
+            document.getElementById('selectedMonthExpense').innerText = `支出: $${totalExpense.toLocaleString()}`;
+            document.getElementById('selectedMonthBalance').innerText = `結餘: $${(totalIncome - totalExpense).toLocaleString()}`;
+
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+            
+            const listHtml = transactions.length > 0 ? transactions.map(t => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="py-3 pl-2 text-gray-500">${t.date}</td>
+                    <td class="py-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${t.category}</span></td>
+                    <td class="py-3 text-gray-800">${t.item}</td>
+                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500' : 'text-green-500'}">${t.amount}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="py-8 text-center text-gray-500">此月份無交易紀錄</td></tr>`;
+            
+            document.getElementById('monthlyTransactionList').innerHTML = listHtml;
+        }
+
+        function renderCategoryChart(categoryData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            const labels = Object.keys(categoryData);
+            const data = Object.values(categoryData);
+            
+            if (labels.length === 0) {
+                labels.push('無支出');
+                data.push(1);
+            }
+
+            categoryChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderTrendChart(trendData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+
+            const labels = Object.values(trendData).map(d => d.label);
+            const incomes = Object.values(trendData).map(d => d.income);
+            const expenses = Object.values(trendData).map(d => d.expense);
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '收入', data: incomes, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: '支出', data: expenses, backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#f3f4f6' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
