@@ -23,17 +23,33 @@
 </head>
 <body class="text-gray-800 antialiased min-h-screen flex flex-col">
 
+    <!-- 登入畫面 -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-[100] flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4 text-center">
+            <div class="flex justify-center mb-4 text-blue-600">
+                <i data-lucide="lock" class="w-12 h-12"></i>
+            </div>
+            <h2 class="text-xl font-bold mb-6 text-gray-800">請輸入專屬密碼</h2>
+            <input type="password" id="pwdInput" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">登入</button>
+            <p id="loginError" class="text-red-500 text-sm mt-3 hidden">密碼錯誤或載入失敗</p>
+        </div>
+    </div>
+
     <!-- 導覽列 -->
     <nav class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-2">
             <i data-lucide="wallet" class="text-blue-600 w-6 h-6"></i>
             <h1 class="text-xl font-bold text-gray-800">財務儀表板</h1>
         </div>
-        <div id="loadingStatus" class="text-sm text-gray-500">讀取中...</div>
+        <div class="flex items-center gap-4">
+            <div id="loadingStatus" class="text-sm text-gray-500">讀取中...</div>
+            <button id="logoutBtn" onclick="logout()" class="text-sm text-red-500 font-medium bg-red-50 px-3 py-1 rounded hover:bg-red-100 hidden">登出</button>
+        </div>
     </nav>
 
     <!-- 主要內容區 -->
-    <main class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-6">
+    <main id="mainContent" class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-6 hidden">
         
         <!-- 頂部數據卡片 -->
         <div class="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -143,42 +159,67 @@
     <script>
         lucide.createIcons();
 
-        // ★★★ 請將下方的文字替換成你的 Google Apps Script 網址 ★★★
-        const API_URL = "https://script.google.com/macros/s/AKfycbwUtuUxJeHFI0KNPm04Xv0pA0_o0YOGu5JI0ev_obOpfkaoz3AlWVvRL9RR8a2HgZwq/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbzXd15o5FwyuStWYp3AkIKqgjRkbtGn8rkCPB45G2xBVsFBgekKd01YVb3w6wWOtAeT/exec";
 
         let trendChartInstance = null;
         let categoryChartInstance = null;
         let globalData = []; 
-
-        const mockData = [
-            { "日期": "2026/02/16", "收支": "支出", "分類": "飲食", "品項": "午餐", "支出金額": 150, "收入金額": "" },
-            { "日期": "2026/02/10", "收支": "收入", "分類": "薪資", "品項": "薪水", "支出金額": "", "收入金額": 50000 },
-            { "日期": "2026/02/01", "收支": "初始餘額", "分類": "資產", "品項": "帳戶餘額", "支出金額": "", "收入金額": 120000 }
-        ];
+        let currentPwd = localStorage.getItem('finance_pwd') || "";
 
         window.onload = () => {
             document.getElementById('monthSelector').addEventListener('change', (e) => {
                 renderMonthlyDetails(e.target.value);
             });
 
-            if (API_URL && API_URL.trim() !== "" && API_URL !== "YOUR_APPS_SCRIPT_URL_HERE") {
-                fetchDataFromUrl(API_URL);
+            if (!currentPwd) {
+                document.getElementById('loadingStatus').innerText = '請先登入';
+                document.getElementById('loginScreen').classList.remove('hidden');
             } else {
-                document.getElementById('loadingStatus').innerText = '顯示展示資料';
-                renderDashboard(mockData);
+                initApp();
             }
         };
 
-        async function fetchDataFromUrl(url) {
+        function login() {
+            const pwd = document.getElementById('pwdInput').value;
+            if (!pwd) return;
+            
+            document.getElementById('loginError').classList.add('hidden');
+            currentPwd = pwd;
+            initApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('finance_pwd');
+            location.reload();
+        }
+
+        async function initApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('loadingStatus').innerText = '資料更新中...';
+            
+            const fetchUrl = `${API_URL}?pwd=${encodeURIComponent(currentPwd)}`;
+            
             try {
-                const response = await fetch(url);
+                const response = await fetch(fetchUrl);
                 const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                localStorage.setItem('finance_pwd', currentPwd);
                 document.getElementById('loadingStatus').innerText = '資料已更新';
                 renderDashboard(data);
             } catch (error) {
-                document.getElementById('loadingStatus').innerText = '載入失敗';
-                alert('資料讀取失敗，請確認網址是否正確。');
-                renderDashboard(mockData); 
+                document.getElementById('loadingStatus').innerText = '驗證失敗';
+                document.getElementById('mainContent').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('loginError').innerText = error.message === "密碼錯誤" ? "密碼錯誤，請重新輸入" : "無法讀取資料";
+                document.getElementById('loginError').classList.remove('hidden');
+                localStorage.removeItem('finance_pwd');
             }
         }
 
