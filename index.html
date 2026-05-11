@@ -226,6 +226,12 @@
                 renderMonthlyDetails(e.target.value);
             });
 
+            document.getElementById('pwdInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+
             if (!currentPwd) {
                 document.getElementById('loadingStatus').innerText = '請先登入';
                 document.getElementById('loginScreen').classList.remove('hidden');
