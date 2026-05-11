@@ -69,7 +69,6 @@
     <!-- 主要內容區 -->
     <main id="mainContent" class="flex-1 p-6 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-6 hidden">
         
-        <!-- 頂部數據卡片 -->
         <div class="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="glass-card rounded-2xl p-5 flex items-center gap-4 transition-colors">
                 <div class="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full text-blue-600 dark:text-blue-400">
@@ -109,7 +108,6 @@
             </div>
         </div>
 
-        <!-- 圖表區 -->
         <div class="md:col-span-8 glass-card rounded-2xl p-6 transition-colors">
             <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">近六個月收支趨勢</h2>
             <div class="relative h-64 w-full">
@@ -124,7 +122,6 @@
             </div>
         </div>
 
-        <!-- 最近交易紀錄 -->
         <div class="md:col-span-12 glass-card rounded-2xl p-6 transition-colors">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-800 dark:text-white">最近交易紀錄</h2>
@@ -146,7 +143,6 @@
             </div>
         </div>
 
-        <!-- 明細交叉查詢 -->
         <div class="md:col-span-12 glass-card rounded-2xl p-6 mt-2 transition-colors">
             <div class="flex flex-col mb-4 gap-4">
                 <h2 class="text-lg font-bold text-gray-800 dark:text-white">明細交叉查詢</h2>
@@ -181,6 +177,7 @@
     </main>
 
     <script>
+        // ★★★ 請務必確認這裡是你的新網址 ★★★
         const API_URL = "https://script.google.com/macros/s/AKfycbzXd15o5FwyuStWYp3AkIKqgjRkbtGn8rkCPB45G2xBVsFBgekKd01YVb3w6wWOtAeT/exec";
 
         let trendChartInstance = null;
@@ -190,7 +187,6 @@
         let categoryTotalsCache = {};
         let trendDataCache = {};
 
-        // 主題初始化
         function initTheme() {
             if (localStorage.theme === 'light') {
                 document.documentElement.classList.remove('dark');
@@ -210,7 +206,6 @@
                 localStorage.theme = 'dark';
             }
             updateThemeIcon();
-            // 重新渲染圖表以更新顏色
             if (Object.keys(categoryTotalsCache).length > 0) {
                 renderCategoryChart(categoryTotalsCache);
                 renderTrendChart(trendDataCache);
@@ -268,6 +263,12 @@
         }
 
         async function initApp() {
+            if (API_URL === "YOUR_NEW_APPS_SCRIPT_URL_HERE") {
+                document.getElementById('loginError').innerText = "尚未設定 API_URL";
+                document.getElementById('loginError').classList.remove('hidden');
+                return;
+            }
+
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
@@ -277,8 +278,15 @@
             const fetchUrl = `${API_URL}?pwd=${encodeURIComponent(currentPwd)}`;
             
             try {
-                const response = await fetch(fetchUrl);
-                const data = await response.json();
+                const response = await fetch(fetchUrl, { redirect: 'follow' });
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    throw new Error("解析資料失敗，權限可能受限。請確認部署設定為「所有人」。");
+                }
                 
                 if (data.error) {
                     throw new Error(data.error);
@@ -293,7 +301,7 @@
                 document.getElementById('mainContent').classList.add('hidden');
                 document.getElementById('logoutBtn').classList.add('hidden');
                 document.getElementById('loginScreen').classList.remove('hidden');
-                document.getElementById('loginError').innerText = error.message === "密碼錯誤" ? "密碼錯誤，請重新輸入" : "無法讀取資料";
+                document.getElementById('loginError').innerText = error.message === "密碼錯誤" ? "密碼錯誤，請重新輸入" : "連線錯誤：" + error.message;
                 document.getElementById('loginError').classList.remove('hidden');
                 localStorage.removeItem('finance_pwd');
             }
@@ -306,7 +314,8 @@
             let totalAssets = 0;
             let monthlyIncome = 0;
             let monthlyExpense = 0;
-            const categoryTotalsCache = {};
+            const currentMonth = new Date().getMonth() + 1;
+            categoryTotalsCache = {};
             const transactions = [];
             trendDataCache = {};
             const today = new Date();
@@ -325,7 +334,7 @@
                 const expense = Number(row["支出金額"]) || 0;
                 const income = Number(row["收入金額"]) || 0;
                 const category = row["分類"];
-                
+
                 if (category) uniqueCategories.add(category);
 
                 totalAssets += (income - expense);
@@ -357,7 +366,7 @@
                     });
                 }
             });
-            
+
             const catSelect = document.getElementById('categorySelector');
             catSelect.innerHTML = '<option value="">全部分類</option>';
             Array.from(uniqueCategories).sort().forEach(cat => {
@@ -446,7 +455,7 @@
                     <td class="py-3 text-gray-800 dark:text-gray-200">${t.item}</td>
                     <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}">${t.amount}</td>
                 </tr>
-            `).join('') : `<tr><td colspan="4" class="py-8 text-center text-gray-500 dark:text-gray-400">此月份無交易紀錄</td></tr>`;
+            `).join('') : `<tr><td colspan="4" class="py-8 text-center text-gray-500 dark:text-gray-400">查無紀錄</td></tr>`;
             
             document.getElementById('monthlyTransactionList').innerHTML = listHtml;
         }
