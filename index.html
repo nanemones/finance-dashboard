@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>個人財務儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f3f4f6;
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
@@ -19,32 +23,46 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
+        .dark .glass-card {
+            background: rgba(31, 41, 55, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+        input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+        }
+        .dark input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
     </style>
 </head>
-<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+<body class="text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-900 antialiased min-h-screen flex flex-col transition-colors duration-200">
 
     <!-- 登入畫面 -->
-    <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-[100] flex items-center justify-center hidden">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4 text-center">
-            <div class="flex justify-center mb-4 text-blue-600">
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900/95 z-[100] flex items-center justify-center hidden backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4 text-center border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+            <div class="flex justify-center mb-4 text-blue-600 dark:text-blue-400">
                 <i data-lucide="lock" class="w-12 h-12"></i>
             </div>
-            <h2 class="text-xl font-bold mb-6 text-gray-800">請輸入專屬密碼</h2>
-            <input type="password" id="pwdInput" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <h2 class="text-xl font-bold mb-6 text-gray-800 dark:text-gray-100">請輸入專屬密碼</h2>
+            <input type="password" id="pwdInput" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg mb-4 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-colors">
             <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">登入</button>
-            <p id="loginError" class="text-red-500 text-sm mt-3 hidden">密碼錯誤或載入失敗</p>
+            <p id="loginError" class="text-red-500 dark:text-red-400 text-sm mt-3 hidden">密碼錯誤或載入失敗</p>
         </div>
     </div>
 
     <!-- 導覽列 -->
-    <nav class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+    <nav class="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50 transition-colors duration-200">
         <div class="flex items-center gap-2">
-            <i data-lucide="wallet" class="text-blue-600 w-6 h-6"></i>
-            <h1 class="text-xl font-bold text-gray-800">財務儀表板</h1>
+            <i data-lucide="wallet" class="text-blue-600 dark:text-blue-400 w-6 h-6"></i>
+            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">財務儀表板</h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="loadingStatus" class="text-sm text-gray-500">讀取中...</div>
-            <button id="logoutBtn" onclick="logout()" class="text-sm text-red-500 font-medium bg-red-50 px-3 py-1 rounded hover:bg-red-100 hidden">登出</button>
+            <div id="loadingStatus" class="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">讀取中...</div>
+            <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300">
+                <i id="themeIcon" data-lucide="sun" class="w-5 h-5"></i>
+            </button>
+            <button id="logoutBtn" onclick="logout()" class="text-sm text-red-500 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/30 px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors hidden">登出</button>
         </div>
     </nav>
 
@@ -53,69 +71,69 @@
         
         <!-- 頂部數據卡片 -->
         <div class="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-                <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4 transition-colors">
+                <div class="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full text-blue-600 dark:text-blue-400">
                     <i data-lucide="landmark" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500 font-medium">總資產</p>
-                    <h3 id="totalAssets" class="text-2xl font-bold text-gray-800">$0</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">總資產</p>
+                    <h3 id="totalAssets" class="text-2xl font-bold text-gray-800 dark:text-white">$0</h3>
                 </div>
             </div>
-            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-                <div class="bg-green-100 p-3 rounded-full text-green-600">
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4 transition-colors">
+                <div class="bg-green-100 dark:bg-green-900/50 p-3 rounded-full text-green-600 dark:text-green-400">
                     <i data-lucide="trending-up" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500 font-medium">本月收入</p>
-                    <h3 id="monthlyIncome" class="text-2xl font-bold text-gray-800">$0</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">本月收入</p>
+                    <h3 id="monthlyIncome" class="text-2xl font-bold text-gray-800 dark:text-white">$0</h3>
                 </div>
             </div>
-            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-                <div class="bg-red-100 p-3 rounded-full text-red-600">
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4 transition-colors">
+                <div class="bg-red-100 dark:bg-red-900/50 p-3 rounded-full text-red-600 dark:text-red-400">
                     <i data-lucide="trending-down" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500 font-medium">本月支出</p>
-                    <h3 id="monthlyExpense" class="text-2xl font-bold text-gray-800">$0</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">本月支出</p>
+                    <h3 id="monthlyExpense" class="text-2xl font-bold text-gray-800 dark:text-white">$0</h3>
                 </div>
             </div>
-            <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-                <div class="bg-purple-100 p-3 rounded-full text-purple-600">
+            <div class="glass-card rounded-2xl p-5 flex items-center gap-4 transition-colors">
+                <div class="bg-purple-100 dark:bg-purple-900/50 p-3 rounded-full text-purple-600 dark:text-purple-400">
                     <i data-lucide="piggy-bank" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500 font-medium">本月結餘</p>
-                    <h3 id="monthlyBalance" class="text-2xl font-bold text-gray-800">$0</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">本月結餘</p>
+                    <h3 id="monthlyBalance" class="text-2xl font-bold text-gray-800 dark:text-white">$0</h3>
                 </div>
             </div>
         </div>
 
         <!-- 圖表區 -->
-        <div class="md:col-span-8 glass-card rounded-2xl p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">近六個月收支趨勢</h2>
+        <div class="md:col-span-8 glass-card rounded-2xl p-6 transition-colors">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">近六個月收支趨勢</h2>
             <div class="relative h-64 w-full">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
 
-        <div class="md:col-span-4 glass-card rounded-2xl p-6 flex flex-col">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">本月支出結構</h2>
+        <div class="md:col-span-4 glass-card rounded-2xl p-6 flex flex-col transition-colors">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">本月支出結構</h2>
             <div class="relative flex-1 w-full flex items-center justify-center min-h-[200px]">
                 <canvas id="categoryChart"></canvas>
             </div>
         </div>
 
         <!-- 最近交易紀錄 -->
-        <div class="md:col-span-12 glass-card rounded-2xl p-6">
+        <div class="md:col-span-12 glass-card rounded-2xl p-6 transition-colors">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-800">最近交易紀錄</h2>
-                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">僅顯示最新 10 筆</span>
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">最近交易紀錄</h2>
+                <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">僅顯示最新 10 筆</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b border-gray-100 text-sm text-gray-500">
+                        <tr class="border-b border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
                             <th class="pb-3 pl-2 font-medium">日期</th>
                             <th class="pb-3 font-medium">分類</th>
                             <th class="pb-3 font-medium">品項</th>
@@ -129,24 +147,24 @@
         </div>
 
         <!-- 月份明細查詢 -->
-        <div class="md:col-span-12 glass-card rounded-2xl p-6 mt-2">
+        <div class="md:col-span-12 glass-card rounded-2xl p-6 mt-2 transition-colors">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <h2 class="text-lg font-bold text-gray-800">月份明細查詢</h2>
-                <input type="month" id="monthSelector" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">月份明細查詢</h2>
+                <input type="month" id="monthSelector" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white transition-colors">
             </div>
             <div class="flex gap-4 mb-4 text-sm">
-                <span class="text-green-600 font-medium" id="selectedMonthIncome">收入: $0</span>
-                <span class="text-red-500 font-medium" id="selectedMonthExpense">支出: $0</span>
-                <span class="text-gray-800 font-bold" id="selectedMonthBalance">結餘: $0</span>
+                <span class="text-green-600 dark:text-green-400 font-medium" id="selectedMonthIncome">收入: $0</span>
+                <span class="text-red-500 dark:text-red-400 font-medium" id="selectedMonthExpense">支出: $0</span>
+                <span class="text-gray-800 dark:text-gray-200 font-bold" id="selectedMonthBalance">結餘: $0</span>
             </div>
-            <div class="overflow-y-auto max-h-96">
+            <div class="overflow-y-auto max-h-96 rounded-lg">
                 <table class="w-full text-left border-collapse relative">
-                    <thead class="sticky top-0 bg-white shadow-sm">
-                        <tr class="border-b border-gray-100 text-sm text-gray-500">
-                            <th class="pb-3 pl-2 font-medium bg-white">日期</th>
-                            <th class="pb-3 font-medium bg-white">分類</th>
-                            <th class="pb-3 font-medium bg-white">品項</th>
-                            <th class="pb-3 font-medium text-right pr-2 bg-white">金額</th>
+                    <thead class="sticky top-0 bg-white dark:bg-gray-800 shadow-sm z-10 transition-colors">
+                        <tr class="border-b border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                            <th class="pb-3 pl-2 pt-2 font-medium">日期</th>
+                            <th class="pb-3 pt-2 font-medium">分類</th>
+                            <th class="pb-3 pt-2 font-medium">品項</th>
+                            <th class="pb-3 pt-2 font-medium text-right pr-2">金額</th>
                         </tr>
                     </thead>
                     <tbody id="monthlyTransactionList" class="text-sm">
@@ -157,16 +175,53 @@
     </main>
 
     <script>
-        lucide.createIcons();
-
         const API_URL = "https://script.google.com/macros/s/AKfycbzXd15o5FwyuStWYp3AkIKqgjRkbtGn8rkCPB45G2xBVsFBgekKd01YVb3w6wWOtAeT/exec";
 
         let trendChartInstance = null;
         let categoryChartInstance = null;
         let globalData = []; 
         let currentPwd = localStorage.getItem('finance_pwd') || "";
+        let categoryTotalsCache = {};
+        let trendDataCache = {};
+
+        // 主題初始化
+        function initTheme() {
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            updateThemeIcon();
+            // 重新渲染圖表以更新顏色
+            if (Object.keys(categoryTotalsCache).length > 0) {
+                renderCategoryChart(categoryTotalsCache);
+                renderTrendChart(trendDataCache);
+            }
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const iconEl = document.getElementById('themeIcon');
+            iconEl.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
 
         window.onload = () => {
+            initTheme();
+            lucide.createIcons();
+
             document.getElementById('monthSelector').addEventListener('change', (e) => {
                 renderMonthlyDetails(e.target.value);
             });
@@ -198,6 +253,7 @@
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
             document.getElementById('loadingStatus').innerText = '資料更新中...';
+            document.getElementById('loadingStatus').classList.remove('hidden');
             
             const fetchUrl = `${API_URL}?pwd=${encodeURIComponent(currentPwd)}`;
             
@@ -211,6 +267,7 @@
                 
                 localStorage.setItem('finance_pwd', currentPwd);
                 document.getElementById('loadingStatus').innerText = '資料已更新';
+                setTimeout(() => document.getElementById('loadingStatus').classList.add('hidden'), 3000);
                 renderDashboard(data);
             } catch (error) {
                 document.getElementById('loadingStatus').innerText = '驗證失敗';
@@ -231,15 +288,15 @@
             let monthlyIncome = 0;
             let monthlyExpense = 0;
             const currentMonth = new Date().getMonth() + 1;
-            const categoryTotals = {};
+            categoryTotalsCache = {};
             const transactions = [];
-            const trendData = {};
+            trendDataCache = {};
             const today = new Date();
 
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
                 const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                trendData[key] = { income: 0, expense: 0, label: `${d.getMonth() + 1}月` };
+                trendDataCache[key] = { income: 0, expense: 0, label: `${d.getMonth() + 1}月` };
             }
 
             data.forEach(row => {
@@ -257,15 +314,15 @@
                     if (type === "支出" || expense > 0) {
                         monthlyExpense += expense;
                         if (category) {
-                            categoryTotals[category] = (categoryTotals[category] || 0) + expense;
+                            categoryTotalsCache[category] = (categoryTotalsCache[category] || 0) + expense;
                         }
                     }
                 }
 
                 const trendKey = `${dateObj.getFullYear()}-${String(month).padStart(2, '0')}`;
-                if (trendData[trendKey]) {
-                    trendData[trendKey].income += income;
-                    trendData[trendKey].expense += expense;
+                if (trendDataCache[trendKey]) {
+                    trendDataCache[trendKey].income += income;
+                    trendDataCache[trendKey].expense += expense;
                 }
 
                 if (type !== "初始餘額") {
@@ -287,17 +344,17 @@
 
             transactions.sort((a, b) => b.timestamp - a.timestamp);
             const listHtml = transactions.slice(0, 10).map(t => `
-                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td class="py-3 pl-2 text-gray-500">${t.date}</td>
-                    <td class="py-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${t.category}</span></td>
-                    <td class="py-3 text-gray-800">${t.item}</td>
-                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500' : 'text-green-500'}">${t.amount}</td>
+                <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td class="py-3 pl-2 text-gray-500 dark:text-gray-400">${t.date}</td>
+                    <td class="py-3"><span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs">${t.category}</span></td>
+                    <td class="py-3 text-gray-800 dark:text-gray-200">${t.item}</td>
+                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}">${t.amount}</td>
                 </tr>
             `).join('');
             document.getElementById('transactionList').innerHTML = listHtml;
 
-            renderCategoryChart(categoryTotals);
-            renderTrendChart(trendData);
+            renderCategoryChart(categoryTotalsCache);
+            renderTrendChart(trendDataCache);
 
             const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
             const monthSelector = document.getElementById('monthSelector');
@@ -348,13 +405,13 @@
             transactions.sort((a, b) => b.timestamp - a.timestamp);
             
             const listHtml = transactions.length > 0 ? transactions.map(t => `
-                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td class="py-3 pl-2 text-gray-500">${t.date}</td>
-                    <td class="py-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${t.category}</span></td>
-                    <td class="py-3 text-gray-800">${t.item}</td>
-                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500' : 'text-green-500'}">${t.amount}</td>
+                <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td class="py-3 pl-2 text-gray-500 dark:text-gray-400">${t.date}</td>
+                    <td class="py-3"><span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs">${t.category}</span></td>
+                    <td class="py-3 text-gray-800 dark:text-gray-200">${t.item}</td>
+                    <td class="py-3 text-right pr-2 font-medium ${t.isExpense ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}">${t.amount}</td>
                 </tr>
-            `).join('') : `<tr><td colspan="4" class="py-8 text-center text-gray-500">此月份無交易紀錄</td></tr>`;
+            `).join('') : `<tr><td colspan="4" class="py-8 text-center text-gray-500 dark:text-gray-400">此月份無交易紀錄</td></tr>`;
             
             document.getElementById('monthlyTransactionList').innerHTML = listHtml;
         }
@@ -371,6 +428,9 @@
                 data.push(1);
             }
 
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+
             categoryChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -378,15 +438,17 @@
                     datasets: [{
                         data: data,
                         backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'],
-                        borderWidth: 0,
+                        borderWidth: isDark ? 2 : 0,
+                        borderColor: isDark ? '#1f2937' : '#ffffff',
                         hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    color: textColor,
                     plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
+                        legend: { position: 'right', labels: { color: textColor, boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
                     },
                     cutout: '70%'
                 }
@@ -401,6 +463,10 @@
             const incomes = Object.values(trendData).map(d => d.income);
             const expenses = Object.values(trendData).map(d => d.expense);
 
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#9ca3af' : '#6b7280';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#f3f4f6';
+
             trendChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -413,12 +479,20 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    color: textColor,
                     plugins: {
-                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
+                        legend: { position: 'top', align: 'end', labels: { color: textColor, boxWidth: 12, font: { family: "'Noto Sans TC', sans-serif" } } }
                     },
                     scales: {
-                        y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#f3f4f6' } },
-                        x: { grid: { display: false } }
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { color: textColor },
+                            grid: { borderDash: [2, 4], color: gridColor, drawBorder: false } 
+                        },
+                        x: { 
+                            ticks: { color: textColor },
+                            grid: { display: false, drawBorder: false } 
+                        }
                     }
                 }
             });
