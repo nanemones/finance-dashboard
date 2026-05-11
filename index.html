@@ -146,11 +146,17 @@
             </div>
         </div>
 
-        <!-- 月份明細查詢 -->
+        <!-- 明細交叉查詢 -->
         <div class="md:col-span-12 glass-card rounded-2xl p-6 mt-2 transition-colors">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <h2 class="text-lg font-bold text-gray-800 dark:text-white">月份明細查詢</h2>
-                <input type="month" id="monthSelector" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white transition-colors">
+            <div class="flex flex-col mb-4 gap-4">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-white">明細交叉查詢</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input type="month" id="monthSelector" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white transition-colors">
+                    <select id="categorySelector" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white transition-colors">
+                        <option value="">全部分類</option>
+                    </select>
+                    <input type="text" id="itemSearch" placeholder="搜尋品項關鍵字" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white transition-colors">
+                </div>
             </div>
             <div class="flex gap-4 mb-4 text-sm">
                 <span class="text-green-600 dark:text-green-400 font-medium" id="selectedMonthIncome">收入: $0</span>
@@ -222,9 +228,9 @@
             initTheme();
             lucide.createIcons();
 
-            document.getElementById('monthSelector').addEventListener('change', (e) => {
-                renderMonthlyDetails(e.target.value);
-            });
+            document.getElementById('monthSelector').addEventListener('change', triggerFilter);
+            document.getElementById('categorySelector').addEventListener('change', triggerFilter);
+            document.getElementById('itemSearch').addEventListener('input', triggerFilter);
 
             document.getElementById('pwdInput').addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
@@ -239,6 +245,13 @@
                 initApp();
             }
         };
+
+        function triggerFilter() {
+            const month = document.getElementById('monthSelector').value;
+            const category = document.getElementById('categorySelector').value;
+            const item = document.getElementById('itemSearch').value.trim();
+            renderMonthlyDetails(month, category, item);
+        }
 
         function login() {
             const pwd = document.getElementById('pwdInput').value;
@@ -293,11 +306,11 @@
             let totalAssets = 0;
             let monthlyIncome = 0;
             let monthlyExpense = 0;
-            const currentMonth = new Date().getMonth() + 1;
-            categoryTotalsCache = {};
+            const categoryTotalsCache = {};
             const transactions = [];
             trendDataCache = {};
             const today = new Date();
+            const uniqueCategories = new Set();
 
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
@@ -312,6 +325,8 @@
                 const expense = Number(row["支出金額"]) || 0;
                 const income = Number(row["收入金額"]) || 0;
                 const category = row["分類"];
+                
+                if (category) uniqueCategories.add(category);
 
                 totalAssets += (income - expense);
 
@@ -342,6 +357,15 @@
                     });
                 }
             });
+            
+            const catSelect = document.getElementById('categorySelector');
+            catSelect.innerHTML = '<option value="">全部分類</option>';
+            Array.from(uniqueCategories).sort().forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                catSelect.appendChild(option);
+            });
 
             document.getElementById('totalAssets').innerText = `$${totalAssets.toLocaleString()}`;
             document.getElementById('monthlyIncome').innerText = `$${monthlyIncome.toLocaleString()}`;
@@ -367,10 +391,10 @@
             if (!monthSelector.value) {
                 monthSelector.value = currentMonthStr;
             }
-            renderMonthlyDetails(monthSelector.value);
+            triggerFilter();
         }
 
-        function renderMonthlyDetails(yearMonth) {
+        function renderMonthlyDetails(yearMonth, filterCategory = '', filterItem = '') {
             if (!globalData || !yearMonth) return;
             const [targetYear, targetMonth] = yearMonth.split('-');
             
@@ -383,10 +407,15 @@
                 const year = dateObj.getFullYear();
                 const month = String(dateObj.getMonth() + 1).padStart(2, '0');
                 const type = row["收支"];
+                const category = row["分類"] || '';
+                const item = row["品項"] || '';
                 
                 if (type === "初始餘額" || type === "資產") return;
 
                 if (year == targetYear && month == targetMonth) {
+                    if (filterCategory && category !== filterCategory) return;
+                    if (filterItem && !item.toLowerCase().includes(filterItem.toLowerCase())) return;
+
                     const expense = Number(row["支出金額"]) || 0;
                     const income = Number(row["收入金額"]) || 0;
                     
@@ -395,8 +424,8 @@
 
                     transactions.push({
                         date: dateObj.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }),
-                        category: row["分類"] || '',
-                        item: row["品項"] || '',
+                        category: category,
+                        item: item,
                         amount: type === "支出" || expense > 0 ? `-$${expense}` : `+$${income}`,
                         isExpense: type === "支出" || expense > 0,
                         timestamp: dateObj.getTime()
